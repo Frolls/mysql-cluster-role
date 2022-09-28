@@ -1,0 +1,100 @@
+---
+# tasks file for mysql-role
+
+# Установка MySQL
+- include_tasks: install.yml
+
+- name: Copy my.cnf global MySQL configuration
+  ansible.builtin.template:
+    src: my.cnf.j2
+    dest: "{{ mysql_config_file }}"
+    mode: u=rw,g=r,o=r # 0644
+  notify: Restart mysql
+  become: true
+
+# Дебил, ребутни мускул на серваках, прежде чем запускать репликацию! ))
+- name: Flush the handlers
+  meta: flush_handlers
+
+- name: Ensure MySQL databases are present
+  community.mysql.mysql_db:
+    name: "{{ item.name }}"
+    collation: "{{ item.collation | default('utf8_general_ci') }}"
+    encoding: "{{ item.encoding | default('utf8') }}"
+    state: "{{ item.state | default('present') }}"
+    target: "{{ item.target | default(omit) }}"
+    login_unix_socket: "{{ login_unix_socket }}"
+  with_items: "{{ mysql_databases }}"
+  become: true
+
+- name: Create user with password, all database privileges and 'WITH GRANT OPTION' in wordpress
+  community.mysql.mysql_user:
+    name: "{{ mysql_username }}"
+    password: "{{ mysql_password }}"
+    priv: "{{ item.name }}.*:ALL,GRANT"
+    host: "%"
+    state: present
+    login_unix_socket: "{{ login_unix_socket }}"
+  become: true
+  with_items: "{{ mysql_databases }}"
+
+- name: Ensure replication user exists on master
+  community.mysql.mysql_user:
+    name: frolls
+    password: frolls
+    host: "%"
+    priv: "{{ mysql_replication_user.priv | default('*.*:REPLICATION SLAVE,REPLICATION CLIENT') }}"
+    state: present
+    login_unix_socket: "{{ login_unix_socket }}"
+  when:
+    - db_role == 'master'
+  become: true
+
+- name: Stop mysql replica thread
+  community.mysql.mysql_replication:
+    mode: stopreplica
+    login_unix_socket: "{{ login_unix_socket }}"
+  become: true
+
+- name: Check slave replication status
+  community.mysql.mysql_replication:
+    mode: getreplica
+    login_host: "{{ mysql_replication_master }}"
+    login_unix_socket: "{{ login_unix_socket }}"
+  ignore_errors: true
+  #register: slave
+  when:
+    - db_role == 'slave'
+  become: true
+
+- name: Check master replication status
+  community.mysql.mysql_replication:
+    mode: getprimary
+    login_unix_socket: "{{ login_unix_socket }}"
+  delegate_to: "{{ mysql_replication_master }}"
+  register: master
+  when:
+    - db_role == 'slave'
+  become: true
+
+- name: Configure replication on the slave
+  community.mysql.mysql_replication:
+    mode: changeprimary
+    primary_host: "{{ mysql_replication_master }}"
+    primary_user: frolls
+    primary_password: frolls
+    primary_log_file: "{{ master.File }}"
+    primary_log_pos: "{{ master.Position }}"
+    login_unix_socket: "{{ login_unix_socket }}"
+  ignore_errors: true
+  when:
+    - db_role == 'slave'
+  become: true
+
+- name: Start replication
+  community.mysql.mysql_replication:
+    mode: startreplica
+    login_unix_socket: "{{ login_unix_socket }}"
+  when:
+    - db_role == 'slave'
+  become: true

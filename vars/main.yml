@@ -1,0 +1,10 @@
+---
+# vars file for mysql-role
+install_packages:
+  - mysql-server
+  - python3-pymysql
+
+mysql_config_file: /etc/mysql/my.cnf
+
+mysql_socket: /var/run/mysqld/mysqld.sock
+login_unix_socket: "{{ mysql_socket }}"

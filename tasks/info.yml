@@ -1,0 +1,10 @@
+- name: Collect all possible information using passwordless root access
+  community.mysql.mysql_info:
+    login_user: root
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  register: mysqlinfo
+  become: true
+
+- name: Print mysqlinfo
+  ansible.builtin.debug:
+    msg: "{{ mysqlinfo }}"

@@ -1,0 +1,59 @@
+[client]
+
+port = {{ mysql_port }}
+socket = {{ mysql_socket }}
+
+[mysqld]
+
+socket = {{ mysql_socket }}
+port = {{ mysql_port }}
+bind-address = {{ mysql_bind_address }}
+datadir = {{ mysql_datadir }}
+
+{% if mysql_sql_mode is not none %}
+sql_mode = {{ mysql_sql_mode }}
+{% endif %}
+
+{% if mysql_replication_master %}
+# Replication 
+# Master IP: {{ mysql_replication_master }}
+
+{% if db_role == 'master' %}
+server-id = 1
+{% else %}
+server-id = {{ range(2, 4294967295) | random }} # random number 2..2^(32)-1
+{% endif %}
+
+{% if db_role == 'master' %}
+log_bin = mysql-bin
+log-bin-index = mysql-bin.index
+expire_logs_days = {{ mysql_expire_logs_days }}
+max_binlog_size = {{ mysql_max_binlog_size }}
+binlog_format = {{mysql_binlog_format}}
+
+{% for db in mysql_databases %}
+{% if db.replicate|default(1) %}
+#replicate-do-db = {{ db.name }}
+binlog_do_db = {{ db.name }}
+{% else %}
+binlog_ignore_db = {{ db.name }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if db_role == 'slave' %}
+
+{% for db in mysql_databases %}
+{% if db.replicate|default(1) %}
+#replicate-do-db = {{ db.name }}
+#binlog_do_db = {{ db.name }}
+{% endif %}
+{% endfor %}
+
+read_only
+relay-log = relay-bin
+relay-log-index = relay-bin.index
+#relay-log = /var/lib/mysql/mysql-relay-bin
+#relay-log-index = /var/lib/mysql/mysql-relay-bin.index
+{% endif %}
+{% endif %}

@@ -1,0 +1,26 @@
+---
+# defaults file for mysql-role
+
+# MySQL connection settings.
+mysql_port: "3306"
+mysql_bind_address: '0.0.0.0'
+mysql_datadir: /var/lib/mysql
+mysql_sql_mode: "NO_ENGINE_SUBSTITUTION"
+
+# Replication settings (replication is only enabled if master/user have values).
+mysql_server_id: "1"
+mysql_max_binlog_size: "100M"
+mysql_binlog_format: "ROW"
+mysql_expire_logs_days: "10"
+
+mysql_replication_role: "{{ db_role }}"
+
+# Databases.
+mysql_databases:
+   - name: wordpress
+     collation: utf8_general_ci
+     encoding: utf8
+     replicate: 1
+
+mysql_username: wordpress
+mysql_password: wordpress
