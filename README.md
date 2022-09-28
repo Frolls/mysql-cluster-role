@@ -14,19 +14,13 @@ Requirements
 
 Какие-то специальные рекомендации отсутствуют
 
+
 Role Variables
 --------------
 
 Смотри `defaults/mai.yml`
 
-Dependencies
-------------
-
-None
-
-Example Playbook
-----------------
-
+Может пригодиться пример inventory:
 
 ```yml
     dbservers:
@@ -42,6 +36,21 @@ Example Playbook
       children:
         dbservers:
 
+```
+
+Dependencies
+------------
+
+None
+
+Example Playbook
+----------------
+
+```yml
+- name: Create MySQL-cluster
+  hosts: dbservers
+  roles:
+    - role: mysql-cluster-role
 ```
 
 License
